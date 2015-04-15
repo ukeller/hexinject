@@ -37,12 +37,15 @@ int inject_hexstr_loop(pcap_t *fp)
 int inject_raw_loop(pcap_t *fp)
 {
     char buffer[BUFFER_SIZE];
+    char size_buf[sizeof(size_t)];
     size_t size;
 
     while (!feof(stdin)) {
 
         /* Read raw */
-        size = fread(buffer, 1, BUFFER_SIZE, stdin);
+        fread(size_buf, 1, sizeof(size), stdin);
+        size=*((size_t*)size_buf);
+        size = fread(buffer,1,size, stdin);
 
         /* Send down the packet */
         if (inject_raw(fp, buffer, size, options.no_cksum, options.no_size) != 0) {
@@ -112,6 +115,7 @@ int sniff_raw_loop(pcap_t *fp, int from_file)
 
         /* Sniff and print a packet */
         if ((packet = sniff_raw(fp, &size))) {
+            fwrite((char*)&size, 1, sizeof(size), stdout);
             fwrite(packet, 1, size, stdout);
             fflush(stdout);
 
@@ -197,7 +201,7 @@ int main(int argc, char **argv) {
 	}
 
 	/* Set read timeout */
-	if(pcap_set_timeout(fp, 1000) != 0) { // a little patch i've seen in freebsd ports: thank you guys ;)
+	if(pcap_set_timeout(fp, 10) != 0) { // a little patch i've seen in freebsd ports: thank you guys ;)
 	    fprintf(stderr,"Unable to set read timeout: the interface may be already activated\n");
 	    return 1;
 	}
